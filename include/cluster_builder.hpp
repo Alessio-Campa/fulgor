@@ -3,13 +3,14 @@
 #include "sketch/hll.h"
 #include "kmeans.hpp"
 #include "index_types.hpp"
+#include "cluster.hpp"
 
 namespace fulgor {
 
 template <typename ColorClass>
 void sketch_color_lists(index<ColorClass>& index,
-                        uint64_t p,                   // use 2^p bytes per HLL sketch
-                        uint64_t num_threads,         // num. threads for construction
+                        uint64_t p,            // use 2^p bytes per HLL sketch
+                        uint64_t num_threads,  // num. threads for construction
                         double left, double right) {
     assert(num_threads > 0);
 
@@ -105,7 +106,7 @@ void sketch_color_lists(index<ColorClass>& index,
     out.write(reinterpret_cast<char const*>(&num_bytes), 8);
     out.write(reinterpret_cast<char const*>(&num_docs), 8);
     out.write(reinterpret_cast<char const*>(&num_filtered), 8);
-    for(auto const color_id: filtered_colors_ids){
+    for (auto const color_id : filtered_colors_ids) {
         out.write(reinterpret_cast<char const*>(&color_id), 8);
     }
     for (auto const& x : thread_sketches[0]) {
@@ -118,8 +119,7 @@ void sketch_color_lists(index<ColorClass>& index,
 }
 
 template <typename ColorClass>
-void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
-
+std::vector<cluster> cluster_sketches(index<ColorClass>& index, std::vector<uint32_t>& inverted_permutation, uint32_t& offset) {
     std::ifstream in("./sketch.tmp", std::ios::binary);
     if (!in.is_open()) throw std::runtime_error("error in opening file");
 
@@ -133,7 +133,7 @@ void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
     in.read(reinterpret_cast<char*>(&num_points), sizeof(uint64_t));
     points.resize(num_points, kmeans::point(num_bytes_per_point));
     color_ids.resize(num_points);
-    for (uint64_t i = 0; i != num_points; ++i){
+    for (uint64_t i = 0; i != num_points; ++i) {
         in.read(reinterpret_cast<char*>(&color_ids[i]), sizeof(uint64_t));
     }
     for (auto& point : points) {
@@ -156,8 +156,10 @@ void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
     std::cout << "** clustering completed" << std::endl;
 
     const uint64_t m_num_partitions = clustering_data.num_clusters;
-    std::vector<uint64_t> m_partition_size(m_num_partitions + 1, 0);
-    for (auto c : clustering_data.clusters) m_partition_size[c] += 1;
+    std::vector<uint32_t> m_partition_size(m_num_partitions + 1, 0);
+    for (auto c : clustering_data.clusters){
+        m_partition_size[c] += 1;
+    }
 
     /* prefix sum */
     {
@@ -172,7 +174,7 @@ void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
     const uint64_t num_color_classes = num_points;
 
     auto clusters_pos = m_partition_size;
-    std::vector<uint64_t> m_permutation(num_color_classes);
+    std::vector<uint32_t> m_permutation(num_color_classes);
     assert(clustering_data.clusters.size() == num_color_classes);
     for (uint64_t i = 0; i != num_color_classes; ++i) {
         uint64_t cluster_id = clustering_data.clusters[i];
@@ -181,10 +183,56 @@ void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
     }
 
     std::vector<uint64_t> m_color_classes_ids(num_color_classes);
-    for (uint64_t i = 0; i != num_color_classes; ++i) { m_color_classes_ids[m_permutation[i]] = color_ids[i]; }
+    for (uint64_t i = 0; i != num_color_classes; ++i) {
+        m_color_classes_ids[m_permutation[i]] = color_ids[i];
+    }
 
     std::cout << "Computed " << m_num_partitions << " partitions\n";
 
+    // build references
+    std::vector<cluster> clusters(m_num_partitions);
+    std::vector<uint32_t> distribution(num_docs, 0);
+    uint32_t cluster_id = 0;
+    uint64_t cluster_size = 0;
+    for (uint64_t color_id = 0; color_id != num_color_classes; ++color_id, ++cluster_size) {
+        if (color_id == m_partition_size[cluster_id]) {
+            std::vector<uint32_t> reference;
+            for (uint32_t i = 0; i != num_docs; ++i) {
+                if (distribution[i] > ceil(1. * cluster_size / 2.)) reference.emplace_back(i);
+            }
+            clusters[cluster_id] = cluster(num_docs, reference);
+            fill(distribution.begin(), distribution.end(), 0);
+            cluster_id++;
+            cluster_size = 0;
+        }
+        auto it = index.colors(m_color_classes_ids[color_id]);
+        for (uint32_t i = 0; i != it.size(); ++i, ++it) { distribution[*it]++; }
+    }
+
+    // build edit lists
+    cluster_id = 0;
+    for (uint64_t color_id = 0; color_id != num_color_classes; ++color_id) {
+        if (color_id == m_partition_size[cluster_id+1]) {
+            cout << "Finished cluster " << cluster_id << " at " << color_id << '\n';
+            cluster_id++;
+        }
+        auto it = index.colors(m_color_classes_ids[color_id]);
+        std::vector<uint32_t> color_list(it.size());
+        for (uint32_t i = 0; i != it.size(); ++i, ++it){
+            color_list[i] = *it;
+        }
+        clusters[cluster_id].append_color_list(color_list);
+    }
+
+    for(uint64_t i = 0; i != m_permutation.size(); ++i){
+        inverted_permutation[m_color_classes_ids[i]] = i + offset;
+    }
+
+    offset += num_color_classes;
+
+    return clusters;
+
+    /*
     std::ofstream cluster_dump(output_filename + ".clst", std::ios::binary);
     cluster_dump.write(reinterpret_cast<char const*>(&num_docs), 8);
     cluster_dump.write(reinterpret_cast<char const*>(&num_color_classes), 8);
@@ -205,6 +253,7 @@ void cluster_sketches(index<ColorClass>& index, std::string output_filename) {
         }
     }
     cluster_dump.close();
+     */
 }
 
 }  // namespace fulgor

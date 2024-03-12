@@ -111,6 +111,7 @@ struct index<ColorClasses>::builder {
         }
 
         {
+            /*
             essentials::logger("step 3 + 1/2. cluster m_ccs");
             timer.start();
 
@@ -155,7 +156,7 @@ struct index<ColorClasses>::builder {
             std::vector<uint64_t> m_partition_size(m_num_partitions+1, 0);
             for (auto c : clustering_data.clusters) m_partition_size[c] += 1;
 
-            /* prefix sum */
+            // prefix sum
             {
                 uint64_t val = 0;
                 for (auto& size: m_partition_size){
@@ -203,6 +204,7 @@ struct index<ColorClasses>::builder {
                 }
             }
             cluster_dump.close();
+            */
         }
 
         {
