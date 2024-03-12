@@ -41,36 +41,9 @@ struct cluster {
     std::vector<uint32_t> reference;
     std::vector<std::vector<int32_t>> edit_lists;
 
-    uint32_t successor(const std::vector<uint32_t>& R, uint32_t j, uint32_t m, uint32_t x) {
-        for (uint32_t p = j; p != m; ++p) {
-            if (x <= R[p]) return p;
-        }
-        return num_docs;
-    }
-
     std::vector<int32_t> edit_list(const std::vector<uint32_t>& L) {
-        /*
-        uint32_t i = 0, j = 0;
-        uint32_t n = L.size(), m = reference.size();
-
-        std::vector<int32_t> E;
-        while (i != n) {
-            uint32_t x = L[i];
-            uint32_t p = successor(reference, j, m, x);
-
-            if (p == num_docs) break;
-
-            for (uint32_t k = j; k != p; ++k) { E.push_back(-reference[k]); }
-            if (reference[p] > x) { E.push_back(x); }
-            i++;
-            j = p + (reference[p] == x);
-        }
-
-        for (uint32_t k = i; k < n; ++k) { E.push_back(L[k]); }
-        for (uint32_t k = j; k < m; ++k) { E.push_back(-reference[k]); }
-
-        return E;
-         */
+        assert(std::is_sorted(L.begin(), L.end()));
+        assert(std::is_sorted(reference.begin(), reference.end()));
 
         std::vector<int> E;
 

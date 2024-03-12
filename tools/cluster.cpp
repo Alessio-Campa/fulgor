@@ -51,6 +51,7 @@ int build_cluster(int argc, char** argv) {
             cout << " ** Started testing\n";
             uint64_t num_ccs = index.num_color_classes();
             vector<uint32_t> errors;
+            uint64_t num_edits = 0;
 
             for(uint64_t i = 0; i < num_ccs; ++i){
                 uint32_t pos = map[i];
@@ -59,15 +60,16 @@ int build_cluster(int argc, char** argv) {
                     pos -= clusters[clst].edit_lists.size();
                     clst++;
                 }
-                cout << i+1 << "/" << num_ccs << " - " << i*100./num_ccs << "% " << i << "@"<< clst << ":" << pos;
+                cout << '\r' << i+1 << "/" << num_ccs << " - " << i*100./num_ccs << "% " << i << "@"<< clst << ":" << pos;
                 vector<uint32_t> resulting_colors = clusters[clst].colors(pos);
                 auto it = index.colors(i);
-                cout << "  *.*°*.* edit: " << resulting_colors.size() << ", real: " << it.size() << '\n';
-                // assert(resulting_colors.size() == it.size());
+                cout << "  *.*°*.* edit: " << resulting_colors.size() << ", real: " << it.size() << ' ';
+                assert(resulting_colors.size() == it.size());
                 if (resulting_colors.size() != it.size()) {
                     errors.push_back(i);
                     continue;
                 }
+                num_edits += clusters[clst].edit_lists[pos].size();
                 for(uint64_t j = 0; j < it.size() && j < resulting_colors.size(); ++j, ++it){
                     if (*it != resulting_colors[j]){
                         // cerr << "Error while checking list " << i << "\n";
@@ -83,6 +85,9 @@ int build_cluster(int argc, char** argv) {
             }
             cout << '\n';
 
+            cout << " Num_edits: " << num_edits << '\n';
+
+            /*
             uint32_t pos = map[97];
             uint32_t clst = 0;
             while (pos >= clusters[clst].edit_lists.size()){
@@ -100,6 +105,7 @@ int build_cluster(int argc, char** argv) {
             for (auto i: clusters[clst].edit_lists[pos]){
                 cout << i << ' ';
             }
+             */
 
             return 0;
         }
