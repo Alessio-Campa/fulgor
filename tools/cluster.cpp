@@ -52,6 +52,7 @@ int build_cluster(int argc, char** argv) {
             uint64_t num_ccs = index.num_color_classes();
             vector<uint32_t> errors;
             uint64_t num_edits = 0;
+            uint64_t compressed_size = 0;
 
             for(uint64_t i = 0; i < num_ccs; ++i){
                 uint32_t pos = map[i];
@@ -60,7 +61,7 @@ int build_cluster(int argc, char** argv) {
                     pos -= clusters[clst].edit_lists.size();
                     clst++;
                 }
-                cout << '\r' << i+1 << "/" << num_ccs << " - " << i*100./num_ccs << "% " << i << "@"<< clst << ":" << pos;
+                cout << '\r' << i+1 << "/" << num_ccs << " - " << (i+1)*100./num_ccs << "% " << i << "@"<< clst << ":" << pos;
                 vector<uint32_t> resulting_colors = clusters[clst].colors(pos);
                 auto it = index.colors(i);
                 cout << "  *.*°*.* edit: " << resulting_colors.size() << ", real: " << it.size() << ' ';
@@ -70,6 +71,7 @@ int build_cluster(int argc, char** argv) {
                     continue;
                 }
                 num_edits += clusters[clst].edit_lists[pos].size();
+                compressed_size += clusters[clst].compressed_size(pos);
                 for(uint64_t j = 0; j < it.size() && j < resulting_colors.size(); ++j, ++it){
                     if (*it != resulting_colors[j]){
                         // cerr << "Error while checking list " << i << "\n";
@@ -86,6 +88,7 @@ int build_cluster(int argc, char** argv) {
             cout << '\n';
 
             cout << " Num_edits: " << num_edits << '\n';
+            cout << " Compressed_size: " << compressed_size << " bits\n";
 
             /*
             uint32_t pos = map[97];
