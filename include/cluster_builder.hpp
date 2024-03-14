@@ -194,7 +194,7 @@ std::vector<cluster> cluster_sketches(index<ColorClass>& index, std::vector<uint
     std::vector<uint32_t> distribution(num_docs, 0);
     uint32_t cluster_id = 0;
     uint64_t cluster_size = 0;
-    for (uint64_t color_id = 0; color_id != num_color_classes; ++color_id, ++cluster_size) {
+    for (uint64_t color_id = 0; color_id != num_color_classes + 1; ++color_id, ++cluster_size) {
         if (color_id == m_partition_size[cluster_id+1]) {
             std::vector<uint32_t> reference;
             for (uint32_t i = 0; i != num_docs; ++i) {
@@ -204,17 +204,13 @@ std::vector<cluster> cluster_sketches(index<ColorClass>& index, std::vector<uint
             fill(distribution.begin(), distribution.end(), 0);
             cluster_id++;
             cluster_size = 0;
+            if (color_id == num_color_classes) break;
         }
         auto it = index.colors(m_color_classes_ids[color_id]);
         for (uint32_t i = 0; i != it.size(); ++i, ++it) {
             distribution[*it]++;
         }
     }
-    std::vector<uint32_t> reference;
-    for (uint32_t i = 0; i != num_docs; ++i) {
-        if (distribution[i] > ceil(1. * cluster_size / 2.)) reference.emplace_back(i);
-    }
-    clusters[cluster_id] = cluster(num_docs, reference);
 
     // build edit lists
     cluster_id = 0;

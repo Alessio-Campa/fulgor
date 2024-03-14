@@ -13,26 +13,24 @@ struct cluster {
         edit_lists.push_back(edit_list(list));
     }
 
-
     std::vector<uint32_t> colors(uint32_t i) {
         std::vector<uint32_t> color_list;
         uint32_t r = 0, e = 0;
-        for (int32_t j = 0; j < num_docs; j++) {
-            if (r < reference.size() && e < edit_lists[i].size() && edit_lists[i][e] == 0 && reference[r] == 0) {
+        while (r != reference.size() && e != edit_lists[i].size()) {
+            if (reference[r] == edit_lists[i][e]) {
                 r++;
                 e++;
-                continue;
+            } else if (reference[r] < edit_lists[i][e]){
+                color_list.push_back(reference[r++]);
+            } else {
+                color_list.push_back(edit_lists[i][e++]);
             }
-            if (r < reference.size() && e < edit_lists[i].size() && reference[r] == j &&
-                -edit_lists[i][e] != j) {
-                color_list.push_back(j);
-            }
-            if (r < reference.size() && e >= edit_lists[i].size() && reference[r] == j){
-                color_list.push_back(j);
-            }
-            if (e < edit_lists[i].size() && edit_lists[i][e] == j) color_list.push_back(j);
-            if (r < reference.size() && reference[r] == j) r++;
-            if (e < edit_lists[i].size() && (edit_lists[i][e] == j || -edit_lists[i][e] == j)) e++;
+        }
+        while (r != reference.size()){
+            color_list.push_back(reference[r++]);
+        }
+        while (e != edit_lists[i].size()){
+            color_list.push_back(edit_lists[i][e++]);
         }
         return color_list;
     }
@@ -42,11 +40,11 @@ struct cluster {
         uint64_t list_size = edit_lists[color_id].size();
 
         util::write_delta(m_bvb, list_size);
-        if (list_size != 0){
-            uint32_t prev_val = abs(edit_lists[color_id][0]);
+        if (list_size != 0) {
+            uint32_t prev_val = edit_lists[color_id][0];
             util::write_delta(m_bvb, prev_val);
             for (uint64_t i = 1; i != list_size; ++i) {
-                uint32_t val = abs(edit_lists[color_id][i]);
+                uint32_t val = edit_lists[color_id][i];
                 assert(val >= prev_val + 1);
                 util::write_delta(m_bvb, val - (prev_val + 1));
                 prev_val = val;
@@ -57,13 +55,14 @@ struct cluster {
 
     uint64_t num_docs;
     std::vector<uint32_t> reference;
-    std::vector<std::vector<int32_t>> edit_lists;
+    std::vector<std::vector<uint32_t>> edit_lists;
 
-    std::vector<int32_t> edit_list(const std::vector<uint32_t>& L) { // TODO: user set_symmetric_difference
+    std::vector<uint32_t> edit_list(
+        const std::vector<uint32_t>& L) {  // TODO: user set_symmetric_difference
         assert(std::is_sorted(L.begin(), L.end()));
         assert(std::is_sorted(reference.begin(), reference.end()));
 
-        std::vector<int> E;
+        std::vector<uint32_t> E;
 
         /* at most (when L and R have empty intersection) */
         E.reserve(L.size() + reference.size());
@@ -77,7 +76,7 @@ struct cluster {
                 E.push_back(L[i]);
                 i += 1;
             } else {
-                E.push_back(-reference[j]);  // note: should be -R[j]
+                E.push_back(reference[j]);  // note: should be -R[j]
                 j += 1;
             }
         }
@@ -87,7 +86,7 @@ struct cluster {
         }
 
         while (j < reference.size()) {
-            E.push_back(-reference[j]);  // note: should be -R[j]
+            E.push_back(reference[j]);  // note: should be -R[j]
             j += 1;
         }
 
