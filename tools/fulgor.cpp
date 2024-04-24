@@ -31,7 +31,8 @@ int help(char* arg0) {
         << "Advanced tools:\n"
         << "  permute            permute the reference names of a Fulgor index\n"
         << "  partition          partition a Fulgor index and build a meta-colored Fulgor index\n"
-        << "  differential       partition a Fulgor index and build a differential-colored Fulgor index\n"
+        << "  differential       partition a Fulgor index and build a differential-colored Fulgor "
+           "index\n"
         << "  dump-colors        write colors to an output file in text format" << std::endl;
 
     return 1;
@@ -60,6 +61,8 @@ int main(int argc, char** argv) {
         return partition(argc - 1, argv + 1);
     } else if (tool == "differential") {
         return diff(argc - 1, argv + 1);
+    } else if (tool == "meta-differential") {
+        return meta_diff(argc - 1, argv + 1);
     } else if (tool == "dump-colors") {
         return dump_colors(argc - 1, argv + 1);
     }

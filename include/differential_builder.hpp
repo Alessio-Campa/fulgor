@@ -144,14 +144,7 @@ struct index<ColorClasses>::differential_builder {
 
     differential_builder(build_configuration const& build_config) : m_build_config(build_config) {}
 
-    void build(index& idx) {
-        if (idx.m_k2u.size() != 0) throw std::runtime_error("index already built");
-
-        index_type index;
-        essentials::logger("step 1. loading index to be differentiated...");
-        essentials::load(index, m_build_config.index_filename_to_differentiate.c_str());
-        essentials::logger("DONE");
-
+    void build_from_index(index& idx, index_type index) {
         essentials::timer<std::chrono::high_resolution_clock, std::chrono::seconds> timer;
 
         differential_permuter p(m_build_config);
@@ -190,7 +183,7 @@ struct index<ColorClasses>::differential_builder {
             d.build(index.get_u2c());
 
             const uint64_t num_unitigs = index.get_u2c().size();
-            pthash::bit_vector_builder u2c_builder(num_unitigs+1, 0);
+            pthash::bit_vector_builder u2c_builder(num_unitigs + 1, 0);
 
             auto const& dict = index.get_k2u();
             const uint64_t k = dict.k();
@@ -199,7 +192,7 @@ struct index<ColorClasses>::differential_builder {
             for (uint64_t new_color_id = 0; new_color_id != num_color_classes; ++new_color_id) {
                 auto [_, old_color_id] = permutation[new_color_id];
                 uint64_t old_unitig_id_end = num_unitigs;
-                if (old_color_id < num_color_classes -1 ){
+                if (old_color_id < num_color_classes - 1) {
                     old_unitig_id_end = d.select(index.get_u2c(), old_color_id) + 1;
                 }
                 uint64_t old_unitig_id_begin = 0;
@@ -210,9 +203,9 @@ struct index<ColorClasses>::differential_builder {
                 // num. unitigs that have the same color
                 pos += old_unitig_id_end - old_unitig_id_begin;
                 // cout << "[" << new_color_id << "] " << pos << "\n";
-                assert(pos-1 < u2c_builder.size());
+                assert(pos - 1 < u2c_builder.size());
 
-                u2c_builder.set(pos-1, 1);
+                u2c_builder.set(pos - 1, 1);
 
                 for (uint64_t i = old_unitig_id_begin; i != old_unitig_id_end; ++i) {
                     auto it = dict.at_contig_id(i);
@@ -295,7 +288,8 @@ struct index<ColorClasses>::differential_builder {
 
                     uint64_t new_color_id = idx.u2c(new_contig_id);
                     uint64_t old_color_id = index.u2c(old_contig_id);
-                    // cout << "[" << new_contig_id << "] " << new_color_id << " -> " << old_color_id << " (got: "<< permutation[new_color_id].second <<")\n";
+                    // cout << "[" << new_contig_id << "] " << new_color_id << " -> " <<
+                    // old_color_id << " (got: "<< permutation[new_color_id].second <<")\n";
 
                     auto exp_it = index.colors(old_color_id);
                     auto res_it = idx.colors(new_color_id);
@@ -317,6 +311,17 @@ struct index<ColorClasses>::differential_builder {
                 }
             }
         }
+    }
+
+    void build(index& idx) {
+        if (idx.m_k2u.size() != 0) throw std::runtime_error("index already built");
+
+        index_type index;
+        essentials::logger("step 1. loading index to be differentiated...");
+        essentials::load(index, m_build_config.index_filename_to_partition.c_str());
+        essentials::logger("DONE");
+
+        build_from_index(idx, index);
     }
 
 private:
