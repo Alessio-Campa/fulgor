@@ -367,11 +367,11 @@ struct meta_differential {
     }
 
     std::vector<differential> m_diff_colors;
-private:
-    uint32_t m_num_docs;
     pthash::compact_vector m_meta_colors;
     sshash::ef_sequence<false> m_meta_colors_offsets;
-    std::vector<hybrid> m_colors;
+private:
     std::vector<partition_endpoint> m_partition_endpoints;
+    uint32_t m_num_docs;
+    std::vector<hybrid> m_colors;
 };
 }  // namespace fulgor
