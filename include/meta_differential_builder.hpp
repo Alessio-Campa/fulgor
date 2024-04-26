@@ -608,7 +608,7 @@ struct index<ColorClasses>::meta_differential_builder {
                 }
                 differential d;
                 diff_builder.build(d);
-                idx.m_ccs.m_diff_colors.push_back(d);
+                idx.m_ccs.m_diff_meta_colors = d;
                 cout << "META: \n";
                 d.print_stats();
             }
