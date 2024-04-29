@@ -604,7 +604,7 @@ struct index<ColorClasses>::meta_differential_builder {
                 for (auto& [cluster_id, color_id] : permutation) {
                     uint64_t meta_list_start = idx.m_ccs.m_meta_colors_offsets.access(color_id);
                     auto meta_color = idx.m_ccs.m_meta_colors.at(meta_list_start);
-                    diff_builder.encode_list(cluster_id, references[cluster_id], *meta_color, ++meta_color);
+                    diff_builder.encode_list(cluster_id, references[cluster_id], *meta_color, meta_color);
                 }
                 differential d;
                 diff_builder.build(d);
