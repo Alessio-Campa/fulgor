@@ -52,24 +52,25 @@ struct differential {
             m_clusters.push_back(false);
 
             uint64_t i = 0, j = 0;
+            uint64_t it_value = *it;
             while (i < it_size && j < ref_size) {
-                if (*it == reference[j]) {
+                if (it_value == reference[j]) {
                     i += 1;
-                    ++it;
                     j += 1;
-                } else if (*it < reference[j]) {
+                    it_value = *it;
+                } else if (it_value < reference[j]) {
                     edit_list.push_back(*it);
                     i += 1;
-                    ++it;
+                    it_value = *it;
                 } else {
                     edit_list.push_back(reference[j]);
                     j += 1;
                 }
             }
             while (i < it_size) {
-                edit_list.push_back(*it);
+                edit_list.push_back(it_value);
+                it_value = *it;
                 i += 1;
-                ++it;
             }
             while (j < ref_size) {
                 edit_list.push_back(reference[j]);

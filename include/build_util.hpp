@@ -386,15 +386,14 @@ void build_differential_sketches_from_compact_vector(
     std::vector<std::vector<uint64_t>> processed_colors(num_color_classes);
     std::vector<uint64_t> processed_colors_ids;
     uint64_t color_id = 0;
-    for (pthash::compact_vector::iterator curr = cv.begin(); curr != cv.end(); ++curr) {
+    for (pthash::compact_vector::iterator curr = cv.begin(); color_id != num_color_classes; color_id++) {
         uint64_t size = *curr;
         processed_colors_ids.push_back(color_id);
         while (size-- > 0) {
-            ++curr;
             processed_colors[color_id].push_back(*curr);
         }
-        color_id++;
     }
+    cout << endl;
     const uint64_t partition_size = processed_colors.size();
 
     std::vector<std::vector<sketch::hll_t>> thread_sketches(
@@ -460,6 +459,7 @@ void build_differential_sketches_from_compact_vector(
             sketch += thread_sketches[thread_id][i];
         }
     }
+
 
     std::ofstream out(output_filename, std::ios::binary);
     if (!out.is_open()) throw std::runtime_error("cannot open file");
