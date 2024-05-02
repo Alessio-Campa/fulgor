@@ -612,6 +612,31 @@ struct index<ColorClasses>::meta_differential_builder {
                 diff_builder.build(d);
                 idx.m_ccs.m_diff_meta_colors = d;
                 d.print_stats();
+
+                essentials::logger("step 7. check correctness...");
+
+                for (uint64_t color_id = 0; color_id < num_color_classes; color_id++) {
+                    uint64_t meta_list_start = idx.m_ccs.m_meta_colors_offsets.access(permutation[color_id].second);
+                    pthash::compact_vector::iterator exp_it = idx.m_ccs.m_meta_colors.at(meta_list_start);
+                    uint64_t exp_it_size = *exp_it;
+                    auto res_it = d.colors(color_id);
+                    if (res_it.size() != exp_it_size) {
+                        cout << "Error while checking color " << color_id
+                             << ", different sizes: expected " << exp_it_size << " but got "
+                             << res_it.size() << ")\n";
+                        continue;
+                    }
+                    for (uint64_t j = 0; j < exp_it_size; ++j, ++res_it) {
+                        auto exp = *exp_it;
+                        auto got = *res_it;
+                        if (exp != got) {
+                            cout << "Error while checking color " << color_id
+                                 << ", mismatch at position " << j << ": expected " << exp
+                                 << " but got " << got << std::endl;
+                        }
+                    }
+                }
+                cout << " META-COLORS DONE.\n";
             }
 
             timer.stop();

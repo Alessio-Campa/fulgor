@@ -401,10 +401,13 @@ struct differential {
         for (uint64_t partition = 0; partition < 11; partition++){
             std::cout << "    range " << partition * num_docs_tenth << " -> " << (partition+1) * num_docs_tenth-1 << ": " << distribution[partition] << std::endl;
         }
+
+        uint64_t count = 0;
         std::cout << "  edit lists size distribution, detail 0% - 10%:" << std::endl;
-        for (uint64_t length = 0; length < distribution_0_10.size(); length++){
+        for (uint64_t length = 0; length < distribution_0_10.size() && count < distribution[0]; length++){
             std::cout << "    [" << length << "] num_edit_lists: " << distribution_0_10[length] << ", num_bits: "<< distribution_0_10_bits[length] <<
                 " (" << distribution_0_10_bits[length]*100.0 / num_edit_lists << "%), bits/int: " << 1.*distribution_0_10_bits[length] / distribution_0_10[length] / length << std::endl;
+            count += distribution_0_10[length];
         }
 
         std::cout << std::endl;
