@@ -59,7 +59,7 @@ struct differential {
                     j += 1;
                     it_value = *it;
                 } else if (it_value < reference[j]) {
-                    edit_list.push_back(*it);
+                    edit_list.push_back(it_value);
                     i += 1;
                     it_value = *it;
                 } else {
