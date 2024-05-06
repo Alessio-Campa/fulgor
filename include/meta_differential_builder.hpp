@@ -9,7 +9,9 @@ struct md_diff_permuter {
     md_diff_permuter(build_configuration const& build_config)
         : m_build_config(build_config), m_num_partitions(0) {}
 
-    void permute_compact_vector(pthash::compact_vector const& cv, uint64_t num_docs, uint64_t num_color_classes, sshash::ef_sequence<false> const& offsets ) {
+    void permute_compact_vector(pthash::compact_vector const& cv, uint64_t num_docs,
+                                uint64_t num_color_classes,
+                                sshash::ef_sequence<false> const& offsets) {
         essentials::timer<std::chrono::high_resolution_clock, std::chrono::seconds> timer;
 
         {
@@ -17,9 +19,9 @@ struct md_diff_permuter {
             timer.start();
 
             constexpr uint64_t p = 10;
-            build_differential_sketches_from_compact_vector(cv, num_docs, num_color_classes, p,
-                                                    m_build_config.num_threads,
-                                                    m_build_config.tmp_dirname + "/sketches.bin");
+            build_differential_sketches_from_compact_vector(
+                cv, num_docs, num_color_classes, p, m_build_config.num_threads,
+                m_build_config.tmp_dirname + "/sketches.bin");
 
             timer.stop();
             std::cout << "** building sketches took " << timer.elapsed() << " seconds / "
@@ -102,6 +104,7 @@ struct md_diff_permuter {
             }
 
             std::cout << "Computed " << m_num_partitions << " partitions\n";
+            std::vector<uint32_t> distribution_stats(num_docs, 0);
 
             m_permutation.resize(num_color_classes);
             m_references.resize(m_num_partitions);
@@ -120,14 +123,22 @@ struct md_diff_permuter {
                     cluster_size = 0;
                     if (color_id == num_color_classes) break;
                 }
-                pthash::compact_vector::iterator it = cv.at(offsets.access(m_color_classes_ids[color_id]));
+                pthash::compact_vector::iterator it =
+                    cv.at(offsets.access(m_color_classes_ids[color_id]));
                 uint64_t size = *it;
-                while (size-- > 0) { distribution[*it]++; }
+                while (size-- > 0) {
+                    uint64_t val = *it;
+                    distribution[val]++;
+                    distribution_stats[val]++;
+                }
                 m_permutation[color_id] = {cluster_id, m_color_classes_ids[color_id]};
+            }
+            for (uint64_t i = 0; i < num_docs; i++) {
+                cout << i << ": " << distribution_stats[i] << ", ";
+                if ((i + 1) % 10 == 0) cout << endl;
             }
         }
     }
-
 
     void permute(hybrid const& h) {
         essentials::timer<std::chrono::high_resolution_clock, std::chrono::seconds> timer;
@@ -594,7 +605,8 @@ struct index<ColorClasses>::meta_differential_builder {
                 essentials::logger("step infty. build differential-meta colors");
                 auto meta_colors = idx.m_ccs.m_meta_colors;
                 md_diff_permuter dp(m_build_config);
-                dp.permute_compact_vector(meta_colors, num_partial_colors, idx.num_color_classes(), idx.m_ccs.m_meta_colors_offsets);
+                dp.permute_compact_vector(meta_colors, num_partial_colors, idx.num_color_classes(),
+                                          idx.m_ccs.m_meta_colors_offsets);
 
                 differential::builder diff_builder;
                 diff_builder.init_colors_builder(dp.num_docs());
@@ -606,7 +618,8 @@ struct index<ColorClasses>::meta_differential_builder {
                 for (auto& [cluster_id, color_id] : permutation) {
                     uint64_t meta_list_start = idx.m_ccs.m_meta_colors_offsets.access(color_id);
                     auto meta_color = idx.m_ccs.m_meta_colors.at(meta_list_start);
-                    diff_builder.encode_list(cluster_id, references[cluster_id], *meta_color, meta_color);
+                    diff_builder.encode_list(cluster_id, references[cluster_id], *meta_color,
+                                             meta_color);
                 }
                 differential d;
                 diff_builder.build(d);
@@ -616,8 +629,10 @@ struct index<ColorClasses>::meta_differential_builder {
                 essentials::logger("step 7. check correctness...");
 
                 for (uint64_t color_id = 0; color_id < num_color_classes; color_id++) {
-                    uint64_t meta_list_start = idx.m_ccs.m_meta_colors_offsets.access(permutation[color_id].second);
-                    pthash::compact_vector::iterator exp_it = idx.m_ccs.m_meta_colors.at(meta_list_start);
+                    uint64_t meta_list_start =
+                        idx.m_ccs.m_meta_colors_offsets.access(permutation[color_id].second);
+                    pthash::compact_vector::iterator exp_it =
+                        idx.m_ccs.m_meta_colors.at(meta_list_start);
                     uint64_t exp_it_size = *exp_it;
                     auto res_it = d.colors(color_id);
                     if (res_it.size() != exp_it_size) {
