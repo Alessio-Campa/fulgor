@@ -385,15 +385,18 @@ void build_differential_sketches_from_compact_vector(
 
     std::vector<std::vector<uint64_t>> processed_colors(num_color_classes);
     std::vector<uint64_t> processed_colors_ids;
-    uint64_t color_id = 0;
-    for (pthash::compact_vector::iterator curr = cv.begin(); color_id != num_color_classes; color_id++) {
+
+    pthash::compact_vector::iterator curr = cv.begin();
+    for (uint64_t color_id = 0; color_id != num_color_classes; color_id++) {
         uint64_t size = *curr;
+        ++curr;
         processed_colors_ids.push_back(color_id);
         while (size-- > 0) {
             processed_colors[color_id].push_back(*curr);
+            ++curr;
         }
     }
-    cout << endl;
+    assert(curr == cv.end());
     const uint64_t partition_size = processed_colors.size();
 
     std::vector<std::vector<sketch::hll_t>> thread_sketches(
@@ -406,7 +409,7 @@ void build_differential_sketches_from_compact_vector(
 
     uint64_t load = 0;
     {
-        for (auto it : processed_colors) { load += it.size(); }
+        for (const auto& it : processed_colors) { load += it.size(); }
     }
 
     uint64_t load_per_thread = load / num_threads;

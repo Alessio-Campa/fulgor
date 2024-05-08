@@ -324,6 +324,32 @@ struct meta {
         }
         os << '\n';
 
+        /* dump meta-color partitions */
+        for (uint64_t color_class_id = 0; color_class_id < num_meta_color_lists; ++color_class_id) {
+            auto it = colors(color_class_id);
+            const uint32_t list_size = it.meta_color_list_size();
+            os << "meta_color_partition_list_" << color_class_id << ' ' << list_size << ' ';
+            for (uint32_t i = 0; i != list_size; ++i) {
+                os << it.partition_id();
+                it.next_partition_id();
+                if (i != list_size - 1) os << ' ';
+            }
+            os << '\n';
+        }
+
+        /* dump meta-color partition indices */
+        for (uint64_t color_class_id = 0; color_class_id < num_meta_color_lists; ++color_class_id) {
+            auto it = colors(color_class_id);
+            const uint32_t list_size = it.meta_color_list_size();
+            os << "meta_color_offset_list_" << color_class_id << ' ' << list_size << ' ';
+            for (uint32_t i = 0; i != list_size; ++i) {
+                os << it.meta_color() - it.partition_lower_bound();
+                it.next_partition_id();
+                if (i != list_size - 1) os << ' ';
+            }
+            os << '\n';
+        }
+
         /* dump meta-color lists */
         for (uint64_t color_class_id = 0; color_class_id != num_meta_color_lists;
              ++color_class_id) {
