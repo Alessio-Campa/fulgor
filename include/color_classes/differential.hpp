@@ -39,10 +39,10 @@ struct differential {
             m_reference_offsets.push_back(m_bvb.num_bits());
         }
 
-        void encode_list(uint64_t cluster_id, std::vector<uint32_t> const& reference,
-                         uint64_t it_size, pthash::compact_vector::iterator it) {
+        void encode_list(uint64_t cluster_id, std::vector<uint32_t> const& reference, meta<hybrid>::forward_iterator it) {
             std::vector<uint32_t> edit_list;
             uint64_t ref_size = reference.size();
+            uint64_t it_size = it.meta_color_list_size();
             edit_list.reserve(ref_size + it_size);
 
             if (cluster_id != m_prev_cluster_id) {
@@ -52,24 +52,23 @@ struct differential {
             m_clusters.push_back(false);
 
             uint64_t i = 0, j = 0;
-            uint64_t it_value = *it;
             while (i < it_size && j < ref_size) {
-                if (it_value == reference[j]) {
+                if (it.partition_id() == reference[j]) {
                     i += 1;
                     j += 1;
-                    it_value = *it;
-                } else if (it_value < reference[j]) {
-                    edit_list.push_back(it_value);
+                    it.next_partition_id();
+                } else if (it.partition_id() < reference[j]) {
+                    edit_list.push_back(it.partition_id());
                     i += 1;
-                    it_value = *it;
+                    it.next_partition_id();
                 } else {
                     edit_list.push_back(reference[j]);
                     j += 1;
                 }
             }
             while (i < it_size) {
-                edit_list.push_back(it_value);
-                it_value = *it;
+                edit_list.push_back(it.partition_id());
+                it.next_partition_id();
                 i += 1;
             }
             while (j < ref_size) {

@@ -2,6 +2,7 @@
 
 #include "external/sketch/include/sketch/hll.h"
 #include "external/kmeans/include/kmeans.hpp"
+#include "color_classes/meta.hpp"
 
 namespace fulgor {
 
@@ -370,8 +371,8 @@ void build_differential_sketches_from_hybrid(
     out.close();
 }
 
-void build_differential_sketches_from_compact_vector(
-    pthash::compact_vector const& cv, uint64_t num_docs, const uint64_t num_color_classes,
+void build_differential_sketches_from_meta(
+    meta<hybrid> const& cv, uint64_t num_docs, const uint64_t num_color_classes,
     const uint64_t p,                   // use 2^p bytes per HLL sketch
     const uint64_t num_threads,         // num. threads for construction
     std::string output_filename  // where the sketches will be serialized
@@ -386,17 +387,14 @@ void build_differential_sketches_from_compact_vector(
     std::vector<std::vector<uint64_t>> processed_colors(num_color_classes);
     std::vector<uint64_t> processed_colors_ids;
 
-    pthash::compact_vector::iterator curr = cv.begin();
-    for (uint64_t color_id = 0; color_id != num_color_classes; color_id++) {
-        uint64_t size = *curr;
-        ++curr;
-        processed_colors_ids.push_back(color_id);
-        while (size-- > 0) {
-            processed_colors[color_id].push_back(*curr);
-            ++curr;
+    for (uint64_t color_class_id = 0; color_class_id < num_color_classes; ++color_class_id) {
+        auto it = cv.colors(color_class_id);
+        const uint32_t list_size = it.meta_color_list_size();
+        processed_colors_ids.push_back(color_class_id);
+        for(uint32_t i = 0; i < list_size; i++, it.next_partition_id()){
+            processed_colors[color_class_id].push_back(it.partition_id());
         }
     }
-    assert(curr == cv.end());
     const uint64_t partition_size = processed_colors.size();
 
     std::vector<std::vector<sketch::hll_t>> thread_sketches(

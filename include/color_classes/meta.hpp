@@ -194,6 +194,7 @@ struct meta {
         uint32_t num_partitions() const { return m_ptr->num_partitions(); }
         uint32_t partition_lower_bound() const { return m_partition_lower_bound; }
         uint32_t partition_upper_bound() const { return m_partition_upper_bound; }
+        uint32_t num_lists_before() const { return m_ptr->m_partition_endpoints[m_partition_id].num_lists_before; }
 
     private:
         meta<ColorClasses> const* m_ptr;
@@ -228,6 +229,8 @@ struct meta {
         return forward_iterator(this, begin);
     }
 
+    std::vector<ColorClasses> partial_colors() const { return m_colors; }
+
     uint32_t num_docs() const { return m_num_docs; }
 
     /* num. meta color lists */
@@ -241,6 +244,15 @@ struct meta {
         for (auto const& c : m_colors) colors_bits += c.num_bits();
         return m_meta_colors.bytes() * 8 + m_meta_colors_offsets.num_bits() + colors_bits +
                (essentials::vec_bytes(m_partition_endpoints) + sizeof(m_num_docs)) * 8;
+    }
+
+    uint64_t num_max_lists_in_partition() const{
+        uint64_t max_size = 0;
+        for(auto color: m_colors){
+            max_size = max(max_size, color.num_color_classes());
+        }
+        cout << "MAX: " << max_size << endl;
+        return max_size;
     }
 
     void print_stats() const {

@@ -304,8 +304,8 @@ struct meta_differential {
                   << ((m_meta_colors.bytes() * 8 + m_meta_colors_offsets.num_bits()) * 100.0) /
                          num_bits()
                   << "%)\n";
-        std::cout << "  differential meta colors: " << m_diff_meta_colors.num_bits() / 8 << " bytes ("
-                  << (m_diff_meta_colors.num_bits() * 100.0) / num_bits() << "%)\n";
+        std::cout << "  differential meta colors: " << m_diff_partitions.num_bits() / 8 << " bytes ("
+                  << (m_diff_partitions.num_bits() * 100.0) / num_bits() << "%)\n";
         std::cout << "  other: " << essentials::vec_bytes(m_partition_endpoints) << " bytes ("
                   << ((essentials::vec_bytes(m_partition_endpoints) * 8) * 100.0) / num_bits()
                   << "%)\n";
@@ -369,7 +369,7 @@ struct meta_differential {
     }
 
     std::vector<differential> m_diff_colors;
-    differential m_diff_meta_colors;
+    differential m_diff_partitions;
     pthash::compact_vector m_meta_colors;
     sshash::ef_sequence<false> m_meta_colors_offsets;
 private:

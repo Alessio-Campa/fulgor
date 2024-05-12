@@ -2,6 +2,7 @@
 
 #include "index.hpp"
 #include "build_util.hpp"
+#include "color_classes/meta.hpp"
 
 namespace fulgor {
 
@@ -9,9 +10,7 @@ struct md_diff_permuter {
     md_diff_permuter(build_configuration const& build_config)
         : m_build_config(build_config), m_num_partitions(0) {}
 
-    void permute_compact_vector(pthash::compact_vector const& cv, uint64_t num_docs,
-                                uint64_t num_color_classes,
-                                sshash::ef_sequence<false> const& offsets) {
+    void permute_meta(meta<hybrid> const& m, uint64_t num_docs) {
         essentials::timer<std::chrono::high_resolution_clock, std::chrono::seconds> timer;
 
         {
@@ -19,8 +18,8 @@ struct md_diff_permuter {
             timer.start();
 
             constexpr uint64_t p = 10;
-            build_differential_sketches_from_compact_vector(
-                cv, num_docs, num_color_classes, p, m_build_config.num_threads,
+            build_differential_sketches_from_meta(
+                m, num_docs, m.num_color_classes(), p, m_build_config.num_threads,
                 m_build_config.tmp_dirname + "/sketches.bin");
 
             timer.stop();
@@ -123,20 +122,23 @@ struct md_diff_permuter {
                     cluster_size = 0;
                     if (color_id == num_color_classes) break;
                 }
-                pthash::compact_vector::iterator it =
-                    cv.at(offsets.access(m_color_classes_ids[color_id]));
-                uint64_t size = *it;
+                meta<hybrid>::forward_iterator it = m.colors(m_color_classes_ids[color_id]);
+                uint64_t size = it.meta_color_list_size();
                 while (size-- > 0) {
-                    uint64_t val = *it;
+                    uint64_t val = it.partition_id();
                     distribution[val]++;
                     distribution_stats[val]++;
+                    it.next_partition_id();
                 }
                 m_permutation[color_id] = {cluster_id, m_color_classes_ids[color_id]};
             }
+            /*
             for (uint64_t i = 0; i < num_docs; i++) {
                 cout << i << ": " << distribution_stats[i] << ", ";
                 if ((i + 1) % 10 == 0) cout << endl;
             }
+            */
+            cout << "FINISHED PERMUTING;" << endl;
         }
     }
 
@@ -430,7 +432,7 @@ struct index<ColorClasses>::meta_differential_builder {
             partial_color.reserve(max_partition_size);
             permuted_list.reserve(num_docs);
 
-            typename ColorClasses::builder colors_builder;
+            meta<hybrid>::builder colors_builder;
 
             colors_builder.init_colors_builder(num_docs, num_partitions);
             for (uint64_t partition_id = 0; partition_id != num_partitions; ++partition_id) {
@@ -576,10 +578,12 @@ struct index<ColorClasses>::meta_differential_builder {
 
             metacolors_in.close();
             std::remove((m_build_config.tmp_dirname + "/metacolors.bin").c_str());
-            colors_builder.build(idx.m_ccs);
+            meta<hybrid> temp_meta;
+            colors_builder.build(temp_meta);
 
-            std::vector<hybrid> pc = idx.m_ccs.partial_colors();
+            std::vector<hybrid> pc = temp_meta.partial_colors();
             assert(pc.size() == num_partitions);
+
             for (uint64_t i = 0; i < num_partitions; i++) {
                 md_diff_permuter dp(m_build_config);
                 dp.permute(pc[i]);
@@ -603,10 +607,8 @@ struct index<ColorClasses>::meta_differential_builder {
 
             {
                 essentials::logger("step infty. build differential-meta colors");
-                auto meta_colors = idx.m_ccs.m_meta_colors;
                 md_diff_permuter dp(m_build_config);
-                dp.permute_compact_vector(meta_colors, num_partial_colors, idx.num_color_classes(),
-                                          idx.m_ccs.m_meta_colors_offsets);
+                dp.permute_meta(temp_meta, num_partial_colors);
 
                 differential::builder diff_builder;
                 diff_builder.init_colors_builder(dp.num_docs());
@@ -614,18 +616,36 @@ struct index<ColorClasses>::meta_differential_builder {
                 auto const& permutation = dp.permutation();
                 auto const& references = dp.references();
 
+
                 for (auto& reference : references) { diff_builder.encode_reference(reference); }
                 for (auto& [cluster_id, color_id] : permutation) {
-                    uint64_t meta_list_start = idx.m_ccs.m_meta_colors_offsets.access(color_id);
-                    auto meta_color = idx.m_ccs.m_meta_colors.at(meta_list_start);
-                    diff_builder.encode_list(cluster_id, references[cluster_id], *meta_color,
-                                             meta_color);
+                    auto meta_color = temp_meta.colors(color_id);
+                    diff_builder.encode_list(cluster_id, references[cluster_id], meta_color);
                 }
                 differential d;
                 diff_builder.build(d);
-                idx.m_ccs.m_diff_meta_colors = d;
+                idx.m_ccs.m_diff_partitions = d;
                 d.print_stats();
 
+                pthash::compact_vector::builder partial_colors_ids_builder(
+                    num_integers_in_metacolors + num_color_classes,
+                    std::ceil(std::log2(temp_meta.num_max_lists_in_partition()))
+                );
+                for (auto& [cluster_id, color_id] : permutation) {
+                    auto it = temp_meta.colors(color_id);
+                    partial_colors_ids_builder.push_back(it.meta_color_list_size());
+                    for(uint64_t i = 0; i < it.meta_color_list_size(); i++, it.next_partition_id()){
+                        it.update_partition();
+                        partial_colors_ids_builder.push_back(it.meta_color() - it.num_lists_before());
+                    }
+                }
+                pthash::compact_vector partial_colors_ids;
+                partial_colors_ids_builder.build(partial_colors_ids);
+                cout << "  PARTIAL COLORS IDS SIZE: " << partial_colors_ids.bytes() << endl; 
+
+
+
+/*
                 essentials::logger("step 7. check correctness...");
 
                 for (uint64_t color_id = 0; color_id < num_color_classes; color_id++) {
@@ -651,7 +671,9 @@ struct index<ColorClasses>::meta_differential_builder {
                         }
                     }
                 }
+                
                 cout << " META-COLORS DONE.\n";
+*/
             }
 
             timer.stop();
