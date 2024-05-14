@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include "index.hpp"
 #include "build_util.hpp"
 #include "color_classes/meta.hpp"
@@ -607,6 +608,8 @@ struct index<ColorClasses>::meta_differential_builder {
 
             {
                 essentials::logger("step infty. build differential-meta colors");
+
+                /*
                 md_diff_permuter dp(m_build_config);
                 dp.permute_meta(temp_meta, num_partial_colors);
 
@@ -626,12 +629,33 @@ struct index<ColorClasses>::meta_differential_builder {
                 diff_builder.build(d);
                 idx.m_ccs.m_diff_partitions = d;
                 d.print_stats();
+                */
+
+                std::map<std::vector<uint64_t>, uint64_t> meta_partitions;
+                std::vector<uint64_t> partition_map(num_color_classes);
+                std::vector<std::vector<uint64_t>> partition_bases;
+                uint64_t num_meta_partitions = 0;
+                for (uint64_t color_id = 0; color_id < num_color_classes; color_id++) {
+                    auto it = temp_meta.colors(color_id);
+                    uint64_t size = it.meta_color_list_size();
+
+                    std::vector<uint64_t> partition_list(size);
+                    for (uint64_t i = 0; i < size; ++i, it.next_partition_id()) {
+                        partition_list[i] = it.partition_id();
+                    }
+                    if (meta_partitions.count(partition_list) == 0){
+                        meta_partitions[partition_list] = num_meta_partitions++;
+                        partition_bases.push_back(partition_list);
+                    }
+                    partition_map[color_id] = meta_partitions[partition_list];
+                }
+
 
                 pthash::compact_vector::builder partial_colors_ids_builder(
                     num_integers_in_metacolors + num_color_classes,
                     std::ceil(std::log2(temp_meta.num_max_lists_in_partition()))
                 );
-                for (auto& [cluster_id, color_id] : permutation) {
+                for (uint64_t color_id = 0; color_id < num_color_classes; color_id++) {
                     auto it = temp_meta.colors(color_id);
                     partial_colors_ids_builder.push_back(it.meta_color_list_size());
                     for(uint64_t i = 0; i < it.meta_color_list_size(); i++, it.next_partition_id()){
@@ -642,7 +666,6 @@ struct index<ColorClasses>::meta_differential_builder {
                 pthash::compact_vector partial_colors_ids;
                 partial_colors_ids_builder.build(partial_colors_ids);
                 cout << "  PARTIAL COLORS IDS SIZE: " << partial_colors_ids.bytes() << endl; 
-
 
 
 /*
