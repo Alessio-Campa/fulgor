@@ -57,10 +57,8 @@ struct meta_differential {
         void process_metacolors(uint64_t partition_set_id, vector<uint64_t>& partition_set,
                                 vector<uint64_t>& relative_colors) {
             assert(partition_set.size() == relative_colors.size());
-            if (partition_set_id != m_prev_partition_set_id
-    ) {
-                m_prev_partition_set_id
-     = partition_set_id;
+            if (partition_set_id != m_prev_partition_set_id) {
+                m_prev_partition_set_id = partition_set_id;
                 m_partition_sets_partitions.set(m_partition_sets_partitions.size() - 1);
             }
             m_partition_sets_partitions.push_back(false);
@@ -84,8 +82,9 @@ struct meta_differential {
             m.m_partition_sets.swap(m_partition_sets.bits());
 
             m.m_partition_sets_partitions.build(&m_partition_sets_partitions);
-            m.m_partition_sets_offsets.encode(m_partition_sets_offsets.begin(), m_partition_sets_offsets.size(),
-                                     m_partition_sets_offsets.back());
+            m.m_partition_sets_offsets.encode(m_partition_sets_offsets.begin(),
+                                              m_partition_sets_offsets.size(),
+                                              m_partition_sets_offsets.back());
             m.m_relative_colors_offsets.encode(m_relative_colors_offsets.begin(),
                                                m_relative_colors_offsets.size(),
                                                m_relative_colors_offsets.back());
@@ -113,7 +112,8 @@ struct meta_differential {
     };
 
     struct forward_iterator {
-        forward_iterator(meta_differential const* ptr, uint64_t begin_partition_set, uint64_t begin_rel)
+        forward_iterator(meta_differential const* ptr, uint64_t begin_partition_set,
+                         uint64_t begin_rel)
             : m_ptr(ptr), m_begin_partition_set(begin_partition_set), m_begin_rel(begin_rel) {
             rewind();
             assert(m_meta_color_list_size > 0);
@@ -130,7 +130,8 @@ struct meta_differential {
             m_pos_in_partial_color = 0;
             m_curr_partition_id = 0;
             m_partition_set_id =
-                bit_vector_iterator((m_ptr->m_partition_sets).data(), (m_ptr->m_partition_sets).size(), m_begin_partition_set);
+                bit_vector_iterator((m_ptr->m_partition_sets).data(),
+                                    (m_ptr->m_partition_sets).size(), m_begin_partition_set);
             m_relative_colors_it = bit_vector_iterator(
                 (m_ptr->m_relative_colors).data(), (m_ptr->m_relative_colors).size(), m_begin_rel);
             m_meta_color_list_size = util::read_delta(m_partition_set_id);
@@ -216,7 +217,8 @@ struct meta_differential {
         uint64_t size() const {
             uint64_t size = 0;
             auto partition_set_it =
-                bit_vector_iterator((m_ptr->m_partition_sets).data(), (m_ptr->m_partition_sets).size(), m_begin_partition_set);
+                bit_vector_iterator((m_ptr->m_partition_sets).data(),
+                                    (m_ptr->m_partition_sets).size(), m_begin_partition_set);
             auto rel_it = bit_vector_iterator((m_ptr->m_relative_colors).data(),
                                               (m_ptr->m_relative_colors).size(), m_begin_rel);
             uint64_t partition_id = 0;
@@ -263,7 +265,8 @@ struct meta_differential {
 
     forward_iterator color_set(uint64_t color_set_id) const {
         assert(color_set_id < num_color_sets());
-        uint64_t begin_partition_set = m_partition_sets_offsets.access(m_partition_sets_partitions.rank(color_set_id));
+        uint64_t begin_partition_set =
+            m_partition_sets_offsets.access(m_partition_sets_partitions.rank(color_set_id));
         uint64_t begin_rel = m_relative_colors_offsets.access(color_set_id);
         return forward_iterator(this, begin_partition_set, begin_rel);
     }
@@ -284,7 +287,8 @@ struct meta_differential {
         return sizeof(size_t) * 8 + sizeof(m_num_docs) * 8 + sizeof(m_num_partition_sets) * 8 +
                m_partition_sets_offsets.num_bits() + m_relative_colors_offsets.num_bits() +
                essentials::vec_bytes(m_partition_endpoints) * 8 + partial_colors_size +
-               essentials::vec_bytes(m_relative_colors) * 8 + essentials::vec_bytes(m_partition_sets) * 8 +
+               essentials::vec_bytes(m_relative_colors) * 8 +
+               essentials::vec_bytes(m_partition_sets) * 8 +
                m_partition_sets_partitions.bytes() * 8;
     }
 
